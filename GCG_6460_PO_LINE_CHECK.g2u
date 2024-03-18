@@ -1,0 +1,194 @@
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Robert Cole
+'Created: 8/12/2021
+
+f.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+f.Intrinsic.Control.If(v.Caller.CompanyCode,<>,"CNB")
+
+	f.Intrinsic.Control.CallSub(Run_Standard)
+
+f.Intrinsic.Control.Else
+
+	f.Intrinsic.Control.CallSub(Run_Exclude)
+
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.Control.End
+
+f.Intrinsic.Control.Catch
+	f.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.End 
+f.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.Run_Standard.Start
+f.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+v.Local.sSQL.Declare
+v.Local.sRet.Declare
+v.Local.fInvNet.Declare
+v.Local.sInvTtl.Declare
+v.Local.fNet.Declare
+v.Local.sMSG.Declare
+v.Local.sDrop.Declare
+v.Local.sPORet.Declare
+v.Local.sBoxRet.Declare
+
+f.Intrinsic.String.Left(v.Passed.000060,4,v.Local.sDrop)
+
+f.Intrinsic.Control.If(v.Passed.000012,=,"AC",or,v.Passed.000012,=,"FF",v.Passed.000012,=,"CF",v.Passed.000012,=,"F4",v.Passed.000012,=,"FG",v.Passed.000012,=,"FB",v.Passed.000012,=,"FC")
+
+	f.Intrinsic.Control.If(v.Local.sDrop,<>,"Drop")
+	
+		f.ODBC.Connection!conx.OpenCompanyConnection
+		
+		f.Intrinsic.String.Build("select FLAG_RECV_CLOSE, QTY_ORDER-QTY_RECEIVED as QTY_OPEN from V_PO_LINES where PURCHASE_ORDER = '{0}' and RECORD_NO = '{1}'",v.Passed.008002,v.Passed.008001,v.Local.sSQL)
+		f.ODBC.Connection!conx.ExecuteandReturn(v.Local.sSQL,v.Local.sPORet)
+		
+		f.Intrinsic.String.Split(v.Local.sPORet,"*!*",v.Local.sPORet)
+		
+		f.Intrinsic.Control.If(v.Local.sPORet(0),<>,"Y")
+		
+			f.Intrinsic.String.Build("Select QTY_ONHAND+QTY_ONORDER_WO+QTY_ONORDER_PO-QTY_REQUIRED as QTY_TTL, UM_INVENTORY from V_INVENTORY_MSTR where PART = '{0}' and LOCATION = '{1}'",v.Passed.000008,v.Passed.000011,v.Local.sSQL)
+			f.ODBC.Connection!conx.ExecuteandReturn(v.Local.sSQL,v.Local.sRet)
+			f.Intrinsic.String.Split(v.Local.sRet,"*!*",v.Local.sRet)
+			v.Local.fInvNet.Set(v.Local.sRet(0))
+			f.Intrinsic.Math.Sub(v.Local.fInvNet,v.Local.sPORet(1),v.Local.fInvNet)
+			
+			f.Intrinsic.Math.Add(v.Local.fInvNet,v.Passed.000024,v.Local.fNet)
+			
+			f.Intrinsic.Control.If(v.Local.fInvNet,>,1)
+			
+				f.Intrinsic.String.Format(v.Local.fInvNet,"###,##0.0000",v.Local.sInvTtl)
+				f.Intrinsic.String.Build("Inventory quantity is currently adequate for existing demand by {0} {1}.{2}Do you want to continue to purchase inventory in excess of sales orders demand?",v.Local.sInvTtl,v.Local.sRet(1),v.Ambient.NewLine,v.Local.sMSG)
+				f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+				
+	'		f.Intrinsic.Control.ElseIf(v.Local.fNet,>,0)
+	'		
+	'			f.Intrinsic.String.Build("Quantity on line will exceed current requirements.{0}Do you want to continue with saving the line?",v.Ambient.NewLine,v.Local.sMSG)
+	'			f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+	'			
+	'		f.Intrinsic.Control.ElseIf(v.Local.fNet,=,0)
+	'		
+	'			f.Intrinsic.String.Build("Quantity on line will cause current requirements to be met exactly.{0}Do you want to continue with saving the line?",v.Ambient.NewLine,v.Local.sMSG)
+	'			f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+	'			
+	'		f.Intrinsic.Control.ElseIf(v.Local.fNet,<,0)
+	'		
+	'			f.Intrinsic.String.Build("Quantity on line is not enough to fulfill current requirements.{0}Do you want to continue with saving the line?",v.Ambient.NewLine,v.Local.sMSG)
+	'			f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+				
+			f.Intrinsic.Control.EndIf
+			
+			f.Intrinsic.Control.If(v.Local.sBoxRet,=,v.Ambient.MsgBoxNo)
+				v.Passed.777777.set(1)
+			f.Intrinsic.Control.Else
+				v.Passed.777777.set(0)
+			f.Intrinsic.Control.EndIf
+			
+		f.Intrinsic.Control.EndIf
+		
+		f.ODBC.Connection!conx.Close
+	
+	f.Intrinsic.Control.EndIf
+	
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.Control.End
+
+f.Intrinsic.Control.Catch
+	f.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.End 
+f.Intrinsic.Control.EndTry
+Program.Sub.Run_Standard.End
+
+Program.Sub.Run_Exclude.Start
+f.Intrinsic.Control.Try
+V.Local.sError.Declare
+
+v.Local.sSQL.Declare
+v.Local.sRet.Declare
+v.Local.fInvNet.Declare
+v.Local.sInvTtl.Declare
+v.Local.fNet.Declare
+v.Local.sMSG.Declare
+v.Local.sDrop.Declare
+v.Local.sPORet.Declare
+v.Local.sBoxRet.Declare
+
+f.Intrinsic.String.Left(v.Passed.000060,4,v.Local.sDrop)
+
+f.Intrinsic.Control.If(v.Passed.000012,=,"AC",or,v.Passed.000012,=,"FF",v.Passed.000012,=,"CF",v.Passed.000012,=,"F4",v.Passed.000012,=,"FG")
+
+	f.Intrinsic.Control.If(v.Local.sDrop,<>,"Drop")
+	
+		f.ODBC.Connection!conx.OpenCompanyConnection
+		
+		f.Intrinsic.String.Build("select FLAG_RECV_CLOSE, QTY_ORDER-QTY_RECEIVED as QTY_OPEN from V_PO_LINES where PURCHASE_ORDER = '{0}' and RECORD_NO = '{1}'",v.Passed.008002,v.Passed.008001,v.Local.sSQL)
+		f.ODBC.Connection!conx.ExecuteandReturn(v.Local.sSQL,v.Local.sPORet)
+		
+		f.Intrinsic.String.Split(v.Local.sPORet,"*!*",v.Local.sPORet)
+		
+		f.Intrinsic.Control.If(v.Local.sPORet(0),<>,"Y")
+		
+			f.Intrinsic.String.Build("Select QTY_ONHAND+QTY_ONORDER_WO+QTY_ONORDER_PO-QTY_REQUIRED as QTY_TTL, UM_INVENTORY from V_INVENTORY_MSTR where PART = '{0}' and LOCATION = '{1}'",v.Passed.000008,v.Passed.000011,v.Local.sSQL)
+			f.ODBC.Connection!conx.ExecuteandReturn(v.Local.sSQL,v.Local.sRet)
+			f.Intrinsic.String.Split(v.Local.sRet,"*!*",v.Local.sRet)
+			v.Local.fInvNet.Set(v.Local.sRet(0))
+			f.Intrinsic.Math.Sub(v.Local.fInvNet,v.Local.sPORet(1),v.Local.fInvNet)
+			
+			f.Intrinsic.Math.Add(v.Local.fInvNet,v.Passed.000024,v.Local.fNet)
+			
+			f.Intrinsic.Control.If(v.Local.fInvNet,>,1)
+			
+				f.Intrinsic.String.Format(v.Local.fInvNet,"###,##0.0000",v.Local.sInvTtl)
+				f.Intrinsic.String.Build("Inventory quantity is currently adequate for existing demand by {0} {1}.{2}Do you want to continue to purchase inventory in excess of sales orders demand?",v.Local.sInvTtl,v.Local.sRet(1),v.Ambient.NewLine,v.Local.sMSG)
+				f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+				
+	'		f.Intrinsic.Control.ElseIf(v.Local.fNet,>,0)
+	'		
+	'			f.Intrinsic.String.Build("Quantity on line will exceed current requirements.{0}Do you want to continue with saving the line?",v.Ambient.NewLine,v.Local.sMSG)
+	'			f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+	'			
+	'		f.Intrinsic.Control.ElseIf(v.Local.fNet,=,0)
+	'		
+	'			f.Intrinsic.String.Build("Quantity on line will cause current requirements to be met exactly.{0}Do you want to continue with saving the line?",v.Ambient.NewLine,v.Local.sMSG)
+	'			f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+	'			
+	'		f.Intrinsic.Control.ElseIf(v.Local.fNet,<,0)
+	'		
+	'			f.Intrinsic.String.Build("Quantity on line is not enough to fulfill current requirements.{0}Do you want to continue with saving the line?",v.Ambient.NewLine,v.Local.sMSG)
+	'			f.Intrinsic.UI.Msgbox(v.Local.sMSG,"WARNING!",4,v.Local.sBoxRet)
+				
+			f.Intrinsic.Control.EndIf
+			
+			f.Intrinsic.Control.If(v.Local.sBoxRet,=,v.Ambient.MsgBoxNo)
+				v.Passed.777777.set(1)
+			f.Intrinsic.Control.Else
+				v.Passed.777777.set(0)
+			f.Intrinsic.Control.EndIf
+			
+		f.Intrinsic.Control.EndIf
+		
+		f.ODBC.Connection!conx.Close
+	
+	f.Intrinsic.Control.EndIf
+	
+f.Intrinsic.Control.EndIf
+
+f.Intrinsic.Control.End
+
+f.Intrinsic.Control.Catch
+	f.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.UI.Msgbox(V.Local.sError)
+	f.Intrinsic.Control.End 
+f.Intrinsic.Control.EndTry
+Program.Sub.Run_Exclude.End
